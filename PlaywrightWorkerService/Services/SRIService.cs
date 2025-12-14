@@ -354,7 +354,7 @@ namespace PlaywrightWorkerService.Services
                         log($"✅ XML fila {i + 1} descargado");
                         await page.WaitForTimeoutAsync(900);
                         //Lectuta de xml descargados
-                        string rutaExcel = Path.Combine(carpetaDestino, "recibidas.xlsx");
+                        string rutaExcel = Path.Combine(carpetaDestino, "recibidas"+fechaCarpeta+".xlsx");
 
                         XmlRecibidasToExcel(carpetaXml, rutaExcel, log);
                     }
@@ -403,89 +403,90 @@ namespace PlaywrightWorkerService.Services
         //fin del metodo
 
         //Metodo para leer el xml y pasarlo aun archivo excel
-public void XmlRecibidasToExcel(string carpetaXml, string rutaExcel, Action<string>? log = null)
-    {
-        log ??= Console.WriteLine;
-
-        var archivosXml = Directory.GetFiles(carpetaXml, "*.xml");
-
-        if (archivosXml.Length == 0)
+        public void XmlRecibidasToExcel(string carpetaXml, string rutaExcel, Action<string>? log = null)
         {
-            log("⚠️ No se encontraron XML.");
-            return;
-        }
+            log ??= Console.WriteLine;
 
-        log($"📄 XML encontrados: {archivosXml.Length}");
-
-        // ================== OBTENER TODAS LAS CABECERAS ==================
-        var cabeceras = new HashSet<string>();
-
-        var documentos = new List<Dictionary<string, string>>();
-
-        foreach (var archivo in archivosXml)
-        {
-            var doc = XDocument.Load(archivo);
-            var fila = new Dictionary<string, string>();
-
-            foreach (var element in doc.Descendants())
+            var archivos = Directory.GetFiles(carpetaXml, "*.xml");
+            if (archivos.Length == 0)
             {
-                if (!element.HasElements && !string.IsNullOrWhiteSpace(element.Value))
+                log("⚠️ No hay XML");
+                return;
+            }
+
+            var filas = new List<Dictionary<string, string>>();
+            var columnas = new HashSet<string>();
+
+            foreach (var archivo in archivos)
+            {
+                var fila = new Dictionary<string, string>();
+                var sriXml = XDocument.Load(archivo);
+
+                // ================= DATOS SRI =================
+                void Add(string k, string? v)
                 {
-                    string tag = element.Name.LocalName;
-                    string valor = element.Value.Trim();
+                    if (!string.IsNullOrWhiteSpace(v))
+                    {
+                        fila[k] = v.Trim();
+                        columnas.Add(k);
+                    }
+                }
 
-                    cabeceras.Add(tag);
+                Add("estado", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "estado")?.Value);
+                Add("fechaAutorizacion", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "fechaAutorizacion")?.Value);
+                Add("numeroAutorizacion", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "numeroAutorizacion")?.Value);
+                Add("ambiente", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "ambiente")?.Value);
 
-                    // Evitar duplicados dentro del mismo XML
-                    if (!fila.ContainsKey(tag))
-                        fila[tag] = valor;
+                // ================= XML INTERNO =================
+                var comprobante = sriXml.Descendants()
+                    .FirstOrDefault(x => x.Name.LocalName == "comprobante")?.Value;
+
+                if (string.IsNullOrWhiteSpace(comprobante))
+                    continue;
+
+                var facturaXml = XDocument.Parse(comprobante);
+
+                // ================= INFO TRIBUTARIA =================
+                foreach (var el in facturaXml.Descendants("infoTributaria").Elements())
+                    Add(el.Name.LocalName, el.Value);
+
+                // ================= INFO FACTURA =================
+                foreach (var el in facturaXml.Descendants("infoFactura").Elements())
+                    Add(el.Name.LocalName, el.Value);
+
+                filas.Add(fila);
+            }
+
+            // ================= CREAR EXCEL =================
+            using var wb = new XLWorkbook();
+            var ws = wb.Worksheets.Add("Recibidas");
+
+            var headers = columnas.OrderBy(x => x).ToList();
+
+            for (int c = 0; c < headers.Count; c++)
+            {
+                ws.Cell(1, c + 1).Value = headers[c];
+                ws.Cell(1, c + 1).Style.Font.Bold = true;
+            }
+
+            for (int r = 0; r < filas.Count; r++)
+            {
+                for (int c = 0; c < headers.Count; c++)
+                {
+                    if (filas[r].TryGetValue(headers[c], out var v))
+                        ws.Cell(r + 2, c + 1).Value = v;
                 }
             }
 
-            documentos.Add(fila);
+            ws.Columns().AdjustToContents();
+            wb.SaveAs(rutaExcel);
+
+            log($"✅ Excel correcto generado: {rutaExcel}");
         }
 
-        // ================== CREAR EXCEL ==================
-        using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add("Recibidas");
 
-        // Encabezados
-        int col = 1;
-        var cabecerasOrdenadas = cabeceras.OrderBy(c => c).ToList();
-
-        foreach (var header in cabecerasOrdenadas)
-        {
-            ws.Cell(1, col).Value = header;
-            ws.Cell(1, col).Style.Font.Bold = true;
-            col++;
-        }
-
-        // Filas
-        int row = 2;
-
-        foreach (var doc in documentos)
-        {
-            col = 1;
-            foreach (var header in cabecerasOrdenadas)
-            {
-                if (doc.TryGetValue(header, out var valor))
-                    ws.Cell(row, col).Value = valor;
-
-                col++;
-            }
-            row++;
-        }
-
-        ws.Columns().AdjustToContents();
-
-        wb.SaveAs(rutaExcel);
-
-        log($"✅ Excel generado: {rutaExcel}");
-    }
-
-
-    //fin de metodo
-    private async Task<bool> GotoWithRetryAsync(IPage page, string url, Action<string>? log = null)
+        //fin de metodo
+        private async Task<bool> GotoWithRetryAsync(IPage page, string url, Action<string>? log = null)
         {
             log ??= Console.WriteLine;
 
