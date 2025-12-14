@@ -1,9 +1,13 @@
-﻿using Microsoft.Playwright;
+﻿using ClosedXML.Excel;
+using Microsoft.Playwright;
 using System;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml.Linq;
+
+
 
 namespace PlaywrightWorkerService.Services
 {
@@ -178,19 +182,9 @@ namespace PlaywrightWorkerService.Services
             }
         }
 
-        //private async Task Logout(IPage page)
-        //{
-        //    try
-        //    {
-        //        await page.GetByRole(AriaRole.Link, new() { Name = " Cerrar sesión" }).ClickAsync();
-        //        await page.GetByRole(AriaRole.Button, new() { Name = "Continuar" }).ClickAsync();
-        //        Console.WriteLine("📄 Gestion generada con exito: " );
-
-        //    }
-        //    catch { }
-        //}
         private async Task Logout(IPage page)
         {
+           
             try
             {
                 Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -210,7 +204,7 @@ namespace PlaywrightWorkerService.Services
                 // NO throw -> que no bloquee el return true
             }
         }
-
+        //metodo para descargar recibidas 
         public async Task<bool> DescargarRecibidasAsync(
             string ruc,
             string ci,
@@ -220,18 +214,23 @@ namespace PlaywrightWorkerService.Services
             string dia,
             string tipoComprobante,
             string carpetaBase,
-Action<string>? log = null)
+            Action<string>? log = null)
         {
             try
             {
                 log ??= Console.WriteLine;
-                Console.OutputEncoding = System.Text.Encoding.UTF8;
-                // === Generar carpeta con fecha ===
+                Console.OutputEncoding = Encoding.UTF8;
+
+                // ================== CARPETAS ==================
                 string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
                 string carpetaDestino = Path.Combine(carpetaBase, fechaCarpeta);
                 Directory.CreateDirectory(carpetaDestino);
 
+                string carpetaXml = Path.Combine(carpetaDestino, "XML"+ fechaCarpeta);
+                Directory.CreateDirectory(carpetaXml);
+
                 log($"📁 Carpeta destino: {carpetaDestino}");
+                log($"📂 Carpeta XML: {carpetaXml}");
 
                 using var playwright = await Playwright.CreateAsync();
                 var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
@@ -246,6 +245,7 @@ Action<string>? log = null)
 
                 var page = await context.NewPageAsync();
 
+                // ================== ACCESO ==================
                 log("➡️ Accediendo a SRI…");
 
                 bool ok = await GotoWithRetryAsync(
@@ -256,11 +256,11 @@ Action<string>? log = null)
 
                 if (!ok)
                 {
-                    log("❌ Error crítico: No se pudo abrir el SRI.");
+                    log("❌ No se pudo abrir el SRI.");
                     return false;
                 }
 
-                // ============ LOGIN ============
+                // ================== LOGIN ==================
                 await page.GetByRole(AriaRole.Link, new() { Name = "Ir a iniciar sesión" }).ClickAsync();
                 await page.GetByRole(AriaRole.Textbox, new() { Name = "*RUC / C.I. / Pasaporte" }).FillAsync(ruc);
                 await page.GetByRole(AriaRole.Textbox, new() { Name = "C.I. adicional" }).FillAsync(ci);
@@ -272,7 +272,7 @@ Action<string>? log = null)
                 // Cerrar modal si aparece
                 try { await page.Locator("sri-titulo-modal-mat div").Nth(2).ClickAsync(); } catch { }
 
-                // ============ NAVEGACIÓN ============
+                // ================== NAVEGACIÓN ==================
                 await page.GetByRole(AriaRole.Button, new() { Name = "Abrir o cerrar menu desplegado" }).ClickAsync();
                 await page.GetByRole(AriaRole.Link, new() { Name = "  FACTURACIÓN ELECTRÓNICA" }).ClickAsync();
                 await page.GetByRole(AriaRole.Link, new() { Name = " Producción" }).ClickAsync();
@@ -285,171 +285,112 @@ Action<string>? log = null)
 
                 log("📄 Módulo de recibidas cargado");
 
-                // ============ FILTROS ============
+                // ================== FILTROS ==================
                 await page.Locator("#frmPrincipal\\:ano").SelectOptionAsync(ano);
                 await page.Locator("#frmPrincipal\\:mes").SelectOptionAsync(mes);
                 await page.Locator("#frmPrincipal\\:dia").SelectOptionAsync(dia);
                 await page.Locator("#frmPrincipal\\:cmbTipoComprobante").SelectOptionAsync(tipoComprobante);
 
-                //await page.GetByRole(AriaRole.Button, new() { Name = "Consultar" }).ClickAsync();
+                var btnConsultar = page.GetByRole(AriaRole.Button, new() { Name = "Consultar" });
+                await btnConsultar.ScrollIntoViewIfNeededAsync();
+                await btnConsultar.ClickAsync(new() { Force = true });
+
+                await page.WaitForTimeoutAsync(3500);
+
+                log("👉 Resolver CAPTCHA manualmente…");
                 await page.WaitForTimeoutAsync(1200);
 
-                // === CLICK FUERZADO EN CONSULTAR ===
-
-                var btnConsultar = page.GetByRole(AriaRole.Button, new() { Name = "Consultar" });
-
+                // ================== MENSAJES SRI ==================
                 try
                 {
-                    // Asegurar que exista
-                    await btnConsultar.WaitForAsync();
-
-                    // Asegurar visibilidad y foco
-                    await btnConsultar.ScrollIntoViewIfNeededAsync();
-                    await btnConsultar.FocusAsync();
-
-                    // Intento 1 - Click normal
-                    await btnConsultar.ClickAsync(new() { Force = true });
-                    log("👉 Click en Consultar (force) enviado...");
-                }
-                catch
-                {
-                    log("⚠ Click normal falló, intentando JS...");
-
-                    try
+                    string mensaje = await page.Locator("[id='formMessages:messages'] div").TextContentAsync();
+                    if (!string.IsNullOrWhiteSpace(mensaje))
                     {
-                        // Intento 2 - Click por JavaScript (infalible)
-                        await page.EvaluateAsync(@"() => {
-                            const btn = document.querySelector('button, input[type=button], input[type=submit], span.ui-button-text');
-                            if(btn) btn.click();
-                        }");
-
-                        log("👉 Click en Consultar aplicado por JavaScript");
-                    }
-                    catch (Exception ex2)
-                    {
-                        log("❌ Falló el click por JS: " + ex2.Message);
+                        log("⚠️ Mensaje SRI: " + mensaje.Trim());
+                        await Logout(page);
                         return false;
                     }
                 }
-
-                // CONTINÚA NORMALMENTE…
-                await page.WaitForTimeoutAsync(3500);
-
-                log("👉 Se requiere el CAPTCHA manual");
-
-                await page.WaitForTimeoutAsync(1200);
-                // Mensaje del sistema
-                string mensajeSistema = "";
-                try
-                {
-                    mensajeSistema = await page.Locator("[id='formMessages:messages'] div").TextContentAsync();
-                }
                 catch { }
 
-                if (!string.IsNullOrWhiteSpace(mensajeSistema))
-                {
-                    log("⚠️ Mensaje del SRI: " + mensajeSistema.Trim());
-                    await Logout(page);
-                    return false;
-                }
-
-                // ============ VERIFICAR FILAS ============
+                // ================== FILAS ==================
                 var filas = page.Locator("#frmPrincipal\\:tablaCompRecibidos_data tr");
                 int filasCount = await filas.CountAsync();
 
                 if (filasCount == 0)
                 {
-                    log("⚠️ No hay datos para exportar.");
+                    log("⚠️ No hay comprobantes.");
                     await Logout(page);
                     return false;
                 }
 
                 log($"📌 {filasCount} filas encontradas.");
-                log("📊 Exportando tabla a CSV...");
 
-                // ============ LIMPIADORES ============
-                string Clean(string s)
+                // ================== DESCARGA XML (DOCUMENTOS) ==================
+                log("⬇️ Descargando XML (columna DOCUMENTOS)...");
+
+                for (int i = 0; i < filasCount; i++)
                 {
-                    if (string.IsNullOrEmpty(s)) return "";
+                    try
+                    {
+                        var linkDocumento = page.Locator(
+                            $"#frmPrincipal\\:tablaCompRecibidos_data tr:nth-child({i + 1}) td:nth-last-child(3) a"
+                        );
 
-                    return s
-                        .Replace("\r", " ")
-                        .Replace("\n", " ")
-                        .Replace("\t", " ")
-                        .Replace(";", ",")
-                        .Replace("  ", " ")
-                        .Trim();
-                }
+                        if (await linkDocumento.CountAsync() == 0)
+                        {
+                            log($"⚠️ Fila {i + 1}: sin XML");
+                            continue;
+                        }
 
-                string FixExcel(string s)
-                {
-                    if (string.IsNullOrEmpty(s)) return s;
-
-                    // Evitar notación científica en RUC y claves largas
-                    if (s.All(char.IsDigit) && s.Length >= 10)
-                        return "'" + s;
-
-                    return s;
-                }
-
-                // ============ EXTRAER ENCABEZADOS ============
-                var encabezados = await page.EvaluateAsync<string[]>(@"
-                    () => {
-                        return Array.from(document.querySelectorAll('#frmPrincipal\\:tablaCompRecibidos thead th'))
-                                    .map(th => th.innerText.trim());
-                    }
-                ");
-
-                        // ============ EXTRAER FILAS ============
-                        var rows = await page.EvaluateAsync<string[][]>(@"
-                    () => {
-                        const trs = Array.from(document.querySelectorAll('#frmPrincipal\\:tablaCompRecibidos_data tr'));
-                        return trs.map(tr => {
-                            return Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim());
+                        var download = await page.RunAndWaitForDownloadAsync(async () =>
+                        {
+                            await linkDocumento.First.ClickAsync(new() { Force = true });
                         });
+
+                        string nombreXml = $"recibida_{i + 1}_{DateTime.Now:HHmmss}.xml";
+                        await download.SaveAsAsync(Path.Combine(carpetaXml, nombreXml));
+
+                        log($"✅ XML fila {i + 1} descargado");
+                        await page.WaitForTimeoutAsync(900);
+                        //Lectuta de xml descargados
+                        string rutaExcel = Path.Combine(carpetaDestino, "recibidas.xlsx");
+
+                        XmlRecibidasToExcel(carpetaXml, rutaExcel, log);
                     }
-                ");
+                    catch (Exception ex)
+                    {
+                        log($"❌ Error XML fila {i + 1}: {ex.Message}");
+                    }
+                }
 
-                // ============ GENERAR CSV ============
+                // ================== CSV ==================
+                log("📊 Exportando CSV...");
+
+                var encabezados = await page.EvaluateAsync<string[]>(@"
+            () => Array.from(document.querySelectorAll('#frmPrincipal\\:tablaCompRecibidos thead th'))
+                       .map(th => th.innerText.trim());
+        ");
+
+                var rows = await page.EvaluateAsync<string[][]>(@"
+            () => Array.from(document.querySelectorAll('#frmPrincipal\\:tablaCompRecibidos_data tr'))
+                       .map(tr => Array.from(tr.querySelectorAll('td'))
+                       .map(td => td.innerText.trim()));
+        ");
+
                 var sb = new StringBuilder();
+                sb.AppendLine(string.Join(";", encabezados));
 
-                // Encabezados
-                sb.AppendLine(string.Join(";", encabezados.Select(c => Clean(c))));
-
-                // Filas
                 foreach (var row in rows)
-                {
-                    sb.AppendLine(string.Join(";", row.Select(c => FixExcel(Clean(c)))));
-                }
+                    sb.AppendLine(string.Join(";", row));
 
-                // ============ NOMBRE DE ARCHIVO ============
-                int num = 1;
-                string archivoCsv;
-
-                do
-                {
-                    archivoCsv = Path.Combine(carpetaDestino, $"recibidas_{num}.csv");
-                    num++;
-                }
-                while (File.Exists(archivoCsv));
-
+                string archivoCsv = Path.Combine(carpetaDestino, "recibidas.csv");
                 await File.WriteAllTextAsync(archivoCsv, sb.ToString(), Encoding.UTF8);
 
-                log("📄 CSV guardado en: " + archivoCsv);
+                log("📄 CSV generado");
 
-                //await Logout(page);
-                //return true;
-
-                try
-                {
-                    await Logout(page);
-                }
-                catch (Exception ex)
-                {
-                    log($"⚠️ Logout falló: {ex.Message} (ignorado)");
-                }
-
-                return true; // <-- AHORA SIEMPRE LLEGA
+                await Logout(page);
+                return true;
             }
             catch (Exception ex)
             {
@@ -458,7 +399,93 @@ Action<string>? log = null)
             }
         }
 
-        private async Task<bool> GotoWithRetryAsync(IPage page, string url, Action<string>? log = null)
+
+        //fin del metodo
+
+        //Metodo para leer el xml y pasarlo aun archivo excel
+public void XmlRecibidasToExcel(string carpetaXml, string rutaExcel, Action<string>? log = null)
+    {
+        log ??= Console.WriteLine;
+
+        var archivosXml = Directory.GetFiles(carpetaXml, "*.xml");
+
+        if (archivosXml.Length == 0)
+        {
+            log("⚠️ No se encontraron XML.");
+            return;
+        }
+
+        log($"📄 XML encontrados: {archivosXml.Length}");
+
+        // ================== OBTENER TODAS LAS CABECERAS ==================
+        var cabeceras = new HashSet<string>();
+
+        var documentos = new List<Dictionary<string, string>>();
+
+        foreach (var archivo in archivosXml)
+        {
+            var doc = XDocument.Load(archivo);
+            var fila = new Dictionary<string, string>();
+
+            foreach (var element in doc.Descendants())
+            {
+                if (!element.HasElements && !string.IsNullOrWhiteSpace(element.Value))
+                {
+                    string tag = element.Name.LocalName;
+                    string valor = element.Value.Trim();
+
+                    cabeceras.Add(tag);
+
+                    // Evitar duplicados dentro del mismo XML
+                    if (!fila.ContainsKey(tag))
+                        fila[tag] = valor;
+                }
+            }
+
+            documentos.Add(fila);
+        }
+
+        // ================== CREAR EXCEL ==================
+        using var wb = new XLWorkbook();
+        var ws = wb.Worksheets.Add("Recibidas");
+
+        // Encabezados
+        int col = 1;
+        var cabecerasOrdenadas = cabeceras.OrderBy(c => c).ToList();
+
+        foreach (var header in cabecerasOrdenadas)
+        {
+            ws.Cell(1, col).Value = header;
+            ws.Cell(1, col).Style.Font.Bold = true;
+            col++;
+        }
+
+        // Filas
+        int row = 2;
+
+        foreach (var doc in documentos)
+        {
+            col = 1;
+            foreach (var header in cabecerasOrdenadas)
+            {
+                if (doc.TryGetValue(header, out var valor))
+                    ws.Cell(row, col).Value = valor;
+
+                col++;
+            }
+            row++;
+        }
+
+        ws.Columns().AdjustToContents();
+
+        wb.SaveAs(rutaExcel);
+
+        log($"✅ Excel generado: {rutaExcel}");
+    }
+
+
+    //fin de metodo
+    private async Task<bool> GotoWithRetryAsync(IPage page, string url, Action<string>? log = null)
         {
             log ??= Console.WriteLine;
 
@@ -473,7 +500,7 @@ Action<string>? log = null)
 
                     var resp = await page.GotoAsync(url, new PageGotoOptions
                     {
-                        Timeout = 20000, // 20 segundos
+                        Timeout = 40000, // 20 segundos
                         WaitUntil = WaitUntilState.DOMContentLoaded
                     });
 
