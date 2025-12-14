@@ -1,0 +1,125 @@
+﻿/* ============================
+   COLORES CORPORATIVOS ESPE
+   Verde:  #00723F 
+   Verde Oscuro: #005F34
+   Verde Claro: #4CAF50
+   ============================ */
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%; /* Necesario para layout flex */
+    background: #f1f5f2;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 🚀 IMPORTANTE: El form es el contenedor flex */
+form {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* HEADER */
+.header-espe {
+    background: #00723F;
+    padding: 20px 0;
+    color: white;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
+.header-content {
+    width: 90%;
+    max-width: 1100px;
+    margin: auto;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.logo-space img {
+    width: 80px;
+    height: auto;
+}
+
+.title {
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* MAIN CONTENT */
+main {
+    flex: 1; /* Ocupa todo lo que queda y empuja el footer abajo */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 0;
+}
+
+.img-espe {
+    width: 260px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    margin-bottom: 40px;
+}
+
+/* BUTTONS */
+.buttons-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.btn-action {
+    width: 240px;
+    padding: 14px;
+    font-size: 16px;
+    border: none;
+    background: #4CAF50;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s ease-in-out;
+}
+
+    .btn-action:hover {
+        background: #005F34;
+        transform: scale(1.06);
+    }
+
+/* FOOTER */
+.footer {
+    background: #00723F;
+    color: white;
+    padding: 6px 0; /* Más angosto */
+    text-align: center;
+    font-size: 13px;
+    margin-top: auto; /* El truco que lo manda ABAJO */
+}
+
+/* RESPONSIVE */
+@media(max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .buttons-container {
+        flex-direction: column;
+        width: 90%;
+    }
+
+    .btn-action {
+        width: 100%;
+    }
+
+    .img-espe {
+        width: 70%;
+    }
+}

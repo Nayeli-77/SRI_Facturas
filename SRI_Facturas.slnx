@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PlaywrightWorkerService/PlaywrightWorkerService.csproj" />
+  <Project Path="SRI_Facturas/SRI_Facturas.csproj" Id="3542604b-e6db-4858-9594-8771cef5a771" />
+</Solution>

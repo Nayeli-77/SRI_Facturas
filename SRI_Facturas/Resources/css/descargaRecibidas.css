@@ -1,0 +1,150 @@
+﻿/* ============================
+   ESTILO GENERAL - RECIBIDAS
+   ============================ */
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7f9;
+    margin: 0;
+    padding: 0;
+}
+
+/* ============================
+   HEADER
+   ============================ */
+.header-espe {
+    background: #006A4E;
+    color: white;
+    padding: 15px 0;
+    display: flex;
+    justify-content: center;
+    box-shadow: 0 2px 5px #ccc;
+}
+
+.header-content {
+    width: 90%;
+    max-width: 1100px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo-space img {
+    height: 55px;
+}
+
+.title {
+    font-size: 26px;
+    font-weight: bold;
+    text-align: center;
+    flex-grow: 1;
+}
+
+/* BOTÓN INICIO */
+.btn-home {
+    background: white;
+    color: #006A4E;
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+    .btn-home:hover {
+        background: #d9ffd5;
+    }
+
+/* ============================
+   CONTENEDOR
+   ============================ */
+.main-section {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 90%;
+    max-width: 650px;
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================
+   TITULOS
+   ============================ */
+.sub-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #006A4E;
+    margin-bottom: 15px;
+}
+
+/* ============================
+   CAMPOS
+   ============================ */
+.input {
+    margin-bottom: 15px;
+}
+
+.textbox,
+.textbox-small,
+select {
+    width: 100%;
+    padding: 8px;
+    font-size: 15px;
+    border-radius: 6px;
+    border: 1px solid #bbb;
+}
+
+/* ============================
+   BOTÓN PRINCIPAL
+   ============================ */
+.btn-action {
+    width: 100%;
+    padding: 12px;
+    background: #009157;
+    border: none;
+    color: white;
+    font-weight: bold;
+    border-radius: 8px;
+    margin-top: 10px;
+    transition: 0.2s;
+}
+
+    .btn-action:hover {
+        background: #00b56b;
+    }
+
+/* ============================
+   LOG Y MENSAJES
+   ============================ */
+.msg {
+    font-size: 15px;
+    margin-top: 10px;
+    display: block;
+    color: #003f2e;
+}
+
+.log-box {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #aaa;
+    border-radius: 8px;
+    background: #f7f7f7;
+    resize: none;
+}
+
+/* ============================
+   FOOTER
+   ============================ */
+.footer {
+    margin-top: 40px;
+    text-align: center;
+    padding: 15px;
+    background: #006A4E;
+    color: white;
+    font-weight: bold;
+}

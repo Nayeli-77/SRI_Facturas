@@ -1,0 +1,177 @@
+﻿/* ============================
+   ESTILO INSTITUCIONAL ESPE
+   Verde:  #00723F 
+   Verde Oscuro: #005F34
+   Verde Claro: #4CAF50
+   ============================ */
+
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f1f5f2;
+}
+
+/* El form es el contenedor flex (WebForms) */
+form {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* HEADER */
+.header-espe {
+    background: #00723F;
+    padding: 18px 0;
+    color: white;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+.header-content {
+    width: 90%;
+    max-width: 1100px;
+    margin: auto;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: relative;
+}
+
+.logo-space img {
+    width: 70px;
+    height: auto;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* acciones en header (botón de inicio a la derecha) */
+.header-actions {
+    margin-left: auto; /* empuja a la derecha */
+}
+
+.btn-home {
+    background: #ffffff22; /* semitransparente */
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+    .btn-home:hover {
+        background: #ffffff33;
+    }
+
+/* MAIN SECTION */
+.main-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+}
+
+/* TARJETA */
+.container {
+    background: white;
+    width: 620px;
+    padding: 26px;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+.sub-title {
+    color: #00723F;
+    margin: 12px 0;
+    font-size: 18px;
+}
+
+/* INPUTS */
+.input {
+    margin-bottom: 14px;
+    font-size: 14px;
+}
+
+.textbox {
+    width: 100%;
+    padding: 9px;
+    border-radius: 6px;
+    border: 1px solid #cfcfcf;
+    font-size: 15px;
+}
+
+.textbox-small {
+    width: 220px;
+    padding: 9px;
+    border-radius: 6px;
+    border: 1px solid #cfcfcf;
+    font-size: 15px;
+}
+
+/* BOTÓN */
+.btn-action {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(180deg,#4CAF50,#3b8b3b);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+    .btn-action:hover {
+        background: #005F34;
+        transform: translateY(-1px);
+    }
+
+/* LOG */
+.log-box {
+    width: 100%;
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid #aaa;
+    margin-top: 12px;
+    font-family: monospace;
+}
+
+/* MENSAJE */
+.msg {
+    color: #003366;
+    font-weight: 700;
+    margin-top: 10px;
+    display: block;
+}
+
+/* FOOTER */
+.footer {
+    background: #00723F;
+    color: white;
+    padding: 8px 0;
+    text-align: center;
+    font-size: 13px;
+    margin-top: auto;
+}
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+    .container {
+        width: 92%;
+        padding: 18px;
+    }
+
+    .textbox-small {
+        width: 100%;
+    }
+
+    .header-content {
+        padding: 0 12px;
+    }
+}
