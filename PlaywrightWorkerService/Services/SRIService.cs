@@ -403,7 +403,10 @@ namespace PlaywrightWorkerService.Services
         //fin del metodo
 
         //Metodo para leer el xml y pasarlo aun archivo excel
-        public void XmlRecibidasToExcel(string carpetaXml, string rutaExcel, Action<string>? log = null)
+        public void XmlRecibidasToExcel(
+            string carpetaXml,
+            string rutaExcel,
+            Action<string>? log = null)
         {
             log ??= Console.WriteLine;
 
@@ -419,23 +422,24 @@ namespace PlaywrightWorkerService.Services
 
             foreach (var archivo in archivos)
             {
-                var fila = new Dictionary<string, string>();
                 var sriXml = XDocument.Load(archivo);
 
                 // ================= DATOS SRI =================
-                void Add(string k, string? v)
+                var baseFila = new Dictionary<string, string>();
+
+                void AddBase(string k, string? v)
                 {
                     if (!string.IsNullOrWhiteSpace(v))
                     {
-                        fila[k] = v.Trim();
+                        baseFila[k] = v.Trim();
                         columnas.Add(k);
                     }
                 }
 
-                Add("estado", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "estado")?.Value);
-                Add("fechaAutorizacion", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "fechaAutorizacion")?.Value);
-                Add("numeroAutorizacion", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "numeroAutorizacion")?.Value);
-                Add("ambiente", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "ambiente")?.Value);
+                AddBase("estado", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "estado")?.Value);
+                AddBase("fechaAutorizacion", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "fechaAutorizacion")?.Value);
+                AddBase("numeroAutorizacion", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "numeroAutorizacion")?.Value);
+                AddBase("ambiente", sriXml.Descendants().FirstOrDefault(x => x.Name.LocalName == "ambiente")?.Value);
 
                 // ================= XML INTERNO =================
                 var comprobante = sriXml.Descendants()
@@ -447,14 +451,46 @@ namespace PlaywrightWorkerService.Services
                 var facturaXml = XDocument.Parse(comprobante);
 
                 // ================= INFO TRIBUTARIA =================
-                foreach (var el in facturaXml.Descendants("infoTributaria").Elements())
-                    Add(el.Name.LocalName, el.Value);
+                foreach (var el in facturaXml.Descendants().Where(x => x.Name.LocalName == "infoTributaria").Elements())
+                    AddBase(el.Name.LocalName, el.Value);
 
                 // ================= INFO FACTURA =================
-                foreach (var el in facturaXml.Descendants("infoFactura").Elements())
-                    Add(el.Name.LocalName, el.Value);
+                foreach (var el in facturaXml.Descendants().Where(x => x.Name.LocalName == "infoFactura").Elements())
+                    AddBase(el.Name.LocalName, el.Value);
 
-                filas.Add(fila);
+                // ================= DETALLES =================
+                var detalles = facturaXml
+                    .Descendants()
+                    .Where(x => x.Name.LocalName == "detalle");
+
+                foreach (var d in detalles)
+                {
+                    var fila = new Dictionary<string, string>(baseFila);
+
+                    void AddDetalle(string k, string? v)
+                    {
+                        if (!string.IsNullOrWhiteSpace(v))
+                        {
+                            fila[k] = v.Trim();
+                            columnas.Add(k);
+                        }
+                    }
+
+                    foreach (var el in d.Elements())
+                    {
+                        if (el.Name.LocalName == "impuestos")
+                        {
+                            var impuesto = el.Descendants().FirstOrDefault(x => x.Name.LocalName == "valor");
+                            AddDetalle("ivaDetalle", impuesto?.Value);
+                        }
+                        else
+                        {
+                            AddDetalle(el.Name.LocalName, el.Value);
+                        }
+                    }
+
+                    filas.Add(fila);
+                }
             }
 
             // ================= CREAR EXCEL =================
@@ -481,7 +517,7 @@ namespace PlaywrightWorkerService.Services
             ws.Columns().AdjustToContents();
             wb.SaveAs(rutaExcel);
 
-            log($"✅ Excel correcto generado: {rutaExcel}");
+            log($"✅ Excel generado correctamente: {rutaExcel}");
         }
 
 
