@@ -5,22 +5,10 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Web.UI;
-using ClosedXML.Excel;
-using System.Globalization;
 
 using System.Web.UI.WebControls;
 
-// Para corregir el error CS0246, asegúrate de que el paquete ClosedXML esté instalado en tu proyecto.
-// Si usas NuGet, ejecuta el siguiente comando en la Consola del Administrador de paquetes:
-// Install-Package ClosedXML
 
-// Si usas .NET Core/Standard, también puedes ejecutar:
-// dotnet add package ClosedXML
-
-// No es necesario modificar el código fuente si el using ya está presente:
-// using ClosedXML.Excel;
-
-// Solo asegúrate de que la referencia al ensamblado ClosedXML esté correctamente agregada al proyecto.
 namespace SRIWebDownloader.Pages
 {
     public partial class DescargaSRI : System.Web.UI.Page
@@ -133,115 +121,6 @@ namespace SRIWebDownloader.Pages
 
             return null;
         }
-
-        protected void btnProcesarCsv_Click(object sender, EventArgs e)
-        {
-            if (!fuCsv.HasFile)
-            {
-                lblMsg.Text = "Debe seleccionar un archivo CSV";
-                return;
-            }
-
-            if (!Path.GetExtension(fuCsv.FileName).Equals(".csv"))
-            {
-                lblMsg.Text = "El archivo debe ser CSV";
-                return;
-            }
-
-            var compras = LeerCsv(fuCsv);
-            var excel = GenerarExcelContable(compras);
-
-            Response.Clear();
-            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            Response.AddHeader("content-disposition", "attachment;filename=AsientoContable.xlsx");
-            Response.BinaryWrite(excel);
-            Response.End();
-        }
-
-        private List<CompraExcel> LeerCsv(FileUpload archivo)
-        {
-            var lista = new List<CompraExcel>();
-
-            using (var reader = new StreamReader(archivo.FileContent, Encoding.UTF8))
-            {
-                bool encabezado = true;
-
-                while (!reader.EndOfStream)
-                {
-                    var linea = reader.ReadLine();
-
-                    if (encabezado)
-                    {
-                        encabezado = false;
-                        continue;
-                    }
-
-                    var c = linea.Split(';');
-
-                    lista.Add(new CompraExcel
-                    {
-                        RazonSocial = c[1], // Tipo y serie
-                        FechaEmision = DateTime.Parse(c[4]),
-                        ValorSinImpuestos = decimal.Parse(c[5], CultureInfo.InvariantCulture),
-                        Iva = decimal.Parse(c[6], CultureInfo.InvariantCulture),
-                        ImporteTotal = decimal.Parse(c[7], CultureInfo.InvariantCulture)
-                    });
-                }
-            }
-
-            return lista;
-        }
-        private byte[] GenerarExcelContable(List<CompraExcel> compras)
-        {
-            using (var wb = new XLWorkbook())
-                
-            {
-                var ws = wb.Worksheets.Add("Asiento Contable");
-
-                ws.Cell(1, 1).Value = "Fecha";
-                ws.Cell(1, 2).Value = "Detalle";
-                ws.Cell(1, 4).Value = "Debe";
-                ws.Cell(1, 5).Value = "Haber";
-
-                int fila = 2;
-
-                foreach (var c in compras)
-                {
-                    ws.Cell(fila, 1).Value = c.FechaEmision;
-                    ws.Cell(fila, 2).Value = "Compras";
-                    ws.Cell(fila, 4).Value = c.ValorSinImpuestos;
-                    fila++;
-
-                    ws.Cell(fila, 2).Value = "IVA compras";
-                    ws.Cell(fila, 4).Value = c.Iva;
-                    fila++;
-
-                    ws.Cell(fila, 2).Value = "Bancos";
-                    ws.Cell(fila, 5).Value = c.ImporteTotal;
-                    fila++;
-
-                    ws.Cell(fila, 2).Value = "Para registrar compra";
-                    fila++;
-                }
-
-                ws.Columns().AdjustToContents();
-
-                using (var ms = new MemoryStream())
-                {
-                    wb.SaveAs(ms);
-                    return ms.ToArray();
-                }
-            }
-        }
-        public class CompraExcel
-        {
-            public DateTime FechaEmision { get; set; }
-            public string RazonSocial { get; set; }
-            public decimal ValorSinImpuestos { get; set; }
-            public decimal Iva { get; set; }
-            public decimal ImporteTotal { get; set; }
-        }
-
 
     }
 }

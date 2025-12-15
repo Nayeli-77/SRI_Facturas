@@ -70,22 +70,6 @@
                         <asp:ListItem Value="Liquidación de compra de bienes y servicios">Liquidación de compra de bienes y servicios</asp:ListItem>
                     </asp:DropDownList>
                 </div>
-<div class="input">
-    <label>Cargar archivo CSV</label>
-
-    <asp:FileUpload 
-        ID="fuCsv" 
-        runat="server" 
-        CssClass="textbox" 
-        accept=".csv" />
-</div>
-
-<asp:Button 
-    ID="btnProcesarCsv" 
-    runat="server" 
-    Text="Generar Excel Contable"
-    CssClass="btn-action"
-    OnClick="btnProcesarCsv_Click" />
 
                 <!-- ScriptManager (UpdatePanel funciona) -->
                 <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePartialRendering="true"></asp:ScriptManager>
