@@ -69,6 +69,24 @@ namespace SRIWebDownloader.Pages
         protected global::System.Web.UI.WebControls.DropDownList dpTipo;
 
         /// <summary>
+        /// Control fuCsv.
+        /// </summary>
+        /// <remarks>
+        /// Campo generado automáticamente.
+        /// Para modificarlo, mueva la declaración del campo del archivo del diseñador al archivo de código subyacente.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.FileUpload fuCsv;
+
+        /// <summary>
+        /// Control btnProcesarCsv.
+        /// </summary>
+        /// <remarks>
+        /// Campo generado automáticamente.
+        /// Para modificarlo, mueva la declaración del campo del archivo del diseñador al archivo de código subyacente.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnProcesarCsv;
+
+        /// <summary>
         /// Control ScriptManager1.
         /// </summary>
         /// <remarks>
