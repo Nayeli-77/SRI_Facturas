@@ -261,6 +261,7 @@
     <Compile Include="Inicio.aspx.designer.cs">
       <DependentUpon>Inicio.aspx</DependentUpon>
     </Compile>
+    <Compile Include="ModeloContable.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SRIJob.cs" />
     <Compile Include="WebForm1.aspx.cs">
