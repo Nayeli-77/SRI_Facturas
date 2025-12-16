@@ -190,15 +190,15 @@ namespace SRI_Facturas
                             fila++;
 
                             ws.Cell(fila, 2).Value = "Bancos";
-                            ws.Cell(fila, 4).Value = d.ImporteTotal; // Debe: pago de compra
-                            bancosHaber.Add(d.ImporteTotal); // <-- invertido
+                            ws.Cell(fila, 5).Value = d.ImporteTotal;
+                            bancosHaber.Add(d.ImporteTotal);
                             fila++;
                         }
                         else
                         {
                             ws.Cell(fila, 2).Value = "Bancos";
-                            ws.Cell(fila, 5).Value = d.ImporteTotal; // Haber: ingreso por venta
-                            bancosDebe.Add(d.ImporteTotal); // <-- invertido
+                            ws.Cell(fila, 4).Value = d.ImporteTotal;
+                            bancosDebe.Add(d.ImporteTotal);
                             fila++;
 
                             ws.Cell(fila, 2).Value = "Ventas";
@@ -212,7 +212,7 @@ namespace SRI_Facturas
                             fila++;
                         }
 
-                        fila += 1; // espacio entre bloques
+                        fila++;
                         nro++;
                     }
 
@@ -265,7 +265,7 @@ namespace SRI_Facturas
                     ws.Cell(filaIvaVentas, 11).Value = ivaVentas.Sum();
                     ws.Cell(filaIvaVentas, 11).Style.Font.Bold = true;
 
-                    // ---- TABLA BANCOS (invertido Debe/Haber) ----
+                    // ---- BANCOS ----
                     int filaBancos = Math.Max(filaVentas, filaIvaVentas) + 2;
                     ws.Range($"G{filaBancos}:H{filaBancos}").Merge().Value = "BANCOS";
                     ws.Cell($"G{filaBancos}").Style.Font.Bold = true;
@@ -277,14 +277,60 @@ namespace SRI_Facturas
                     for (int i = 0; i < maxBancos; i++)
                     {
                         if (i < bancosDebe.Count)
-                            ws.Cell(filaBancosValores, 7).Value = bancosDebe[i]; // Debe
+                            ws.Cell(filaBancosValores, 7).Value = bancosDebe[i];
                         if (i < bancosHaber.Count)
-                            ws.Cell(filaBancosValores, 8).Value = bancosHaber[i]; // Haber
+                            ws.Cell(filaBancosValores, 8).Value = bancosHaber[i];
                         filaBancosValores++;
                     }
+
                     ws.Cell(filaBancosValores, 7).Value = bancosDebe.Sum();
                     ws.Cell(filaBancosValores, 8).Value = bancosHaber.Sum();
                     ws.Range(filaBancosValores, 7, filaBancosValores, 8).Style.Font.Bold = true;
+
+                    // ================= ESTADO DE RESULTADOS =================
+                    int filaEstado = filaBancosValores + 3;
+
+                    ws.Range(filaEstado, 7, filaEstado, 10).Merge().Value = "ESTADO DE RESULTADOS";
+                    ws.Cell(filaEstado, 7).Style.Font.Bold = true;
+                    ws.Cell(filaEstado, 7).Style.Font.FontSize = 12;
+                    filaEstado++;
+
+                    var fecha = datos.First().FechaEmision;
+                    var fechaFinMes = new DateTime(
+                        fecha.Year,
+                        fecha.Month,
+                        DateTime.DaysInMonth(fecha.Year, fecha.Month)
+                    );
+
+                    ws.Range(filaEstado, 7, filaEstado, 10).Merge().Value = fechaFinMes;
+                    ws.Cell(filaEstado, 7).Style.DateFormat.Format = "dd/MM/yyyy";
+                    filaEstado += 2;
+
+                    ws.Cell(filaEstado, 7).Value = "Ingresos";
+                    ws.Cell(filaEstado, 7).Style.Font.Bold = true;
+                    filaEstado++;
+
+                    ws.Cell(filaEstado, 8).Value = "Venta";
+                    ws.Cell(filaEstado, 10).Value = ventas.Sum();
+                    ws.Cell(filaEstado, 10).Style.NumberFormat.Format = "$ #,##0.00";
+                    filaEstado += 2;
+
+                    ws.Cell(filaEstado, 7).Value = "Gastos";
+                    ws.Cell(filaEstado, 7).Style.Font.Bold = true;
+                    filaEstado++;
+
+                    ws.Cell(filaEstado, 8).Value = "Compra";
+                    ws.Cell(filaEstado, 10).Value = compras.Sum();
+                    ws.Cell(filaEstado, 10).Style.NumberFormat.Format = "$ #,##0.00";
+                    filaEstado += 2;
+
+                    decimal utilidad = ventas.Sum() - compras.Sum();
+
+                    ws.Cell(filaEstado, 7).Value = "(=) Utilidad del Ejercicio";
+                    ws.Cell(filaEstado, 7).Style.Font.Bold = true;
+                    ws.Cell(filaEstado, 10).Value = utilidad;
+                    ws.Cell(filaEstado, 10).Style.Font.Bold = true;
+                    ws.Cell(filaEstado, 10).Style.NumberFormat.Format = "$ #,##0.00";
 
                     ws.Columns().AdjustToContents();
 
@@ -300,6 +346,7 @@ namespace SRI_Facturas
                 throw new Exception("Error al generar el archivo contable", ex);
             }
         }
+
 
     }
 }
