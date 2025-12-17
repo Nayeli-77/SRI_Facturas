@@ -119,6 +119,30 @@ namespace SRI_Facturas
             Response.End();
         }
 
+        protected void btnGenerarSitFinanciera_Click(object sender, EventArgs e)
+        {
+            if (!fuCarpetaCsv.HasFiles) return;
+
+            var lista = new List<CompraExcel>();
+
+            foreach (HttpPostedFile file in fuCarpetaCsv.PostedFiles)
+            {
+                if (file.FileName.EndsWith(".csv"))
+                    lista.AddRange(LeerCsvGeneral(file));
+            }
+
+            // ORDENAR POR FECHA
+            lista = lista.OrderBy(x => x.FechaEmision).ToList();
+
+            var excel = GenerarExcelEstadoSituacionFinanciera(lista);
+
+            Response.Clear();
+            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("content-disposition", "attachment;filename=SituacionFinanciera.xlsx");
+            Response.BinaryWrite(excel);
+            Response.End();
+        }
+
         // ================= CSV =================
 
         private List<CompraExcel> LeerCsvGeneral(HttpPostedFile archivo)
@@ -406,6 +430,77 @@ namespace SRI_Facturas
 
                     ws.Columns().AdjustToContents();
 
+                    // ================= ESTADO DE SITUACIÓN FINANCIERA =================
+                    decimal totalBancos = bancosDebe.Sum() - bancosHaber.Sum();
+                    decimal totalIvaCompras = ivaCompras.Sum();
+                    decimal totalIvaVentas = ivaVentas.Sum();
+                    decimal totalActivos = totalBancos + totalIvaCompras;
+                    decimal utilidadEjercicio = ventas.Sum() - compras.Sum();
+                    decimal totalPasivos = totalIvaVentas;
+                    decimal totalPatrimonio = utilidadEjercicio;
+
+
+                    int filaESF = filaEstado + 4;
+
+                    // TÍTULO
+                    ws.Range(filaESF, 1, filaESF, 6).Merge().Value = "ESTADO DE SITUACIÓN FINANCIERA";
+                    ws.Cell(filaESF, 1).Style.Font.Bold = true;
+                    ws.Cell(filaESF, 1).Style.Font.FontSize = 12;
+                    filaESF++;
+
+                    // FECHA
+                    ws.Range(filaESF, 1, filaESF, 6).Merge().Value = fechaFinMes;
+                    ws.Cell(filaESF, 1).Style.DateFormat.Format = "dd/MM/yyyy";
+                    filaESF += 2;
+
+                    // ENCABEZADOS
+                    ws.Cell(filaESF, 1).Value = "ACTIVOS";
+                    ws.Cell(filaESF, 4).Value = "PASIVOS";
+                    ws.Range(filaESF, 1, filaESF, 4).Style.Font.Bold = true;
+                    filaESF++;
+
+                    // ===== ACTIVOS =====
+                    ws.Cell(filaESF, 1).Value = "Bancos";
+                    ws.Cell(filaESF, 2).Value = totalBancos;
+                    ws.Cell(filaESF, 2).Style.NumberFormat.Format = "$ #,##0.00";
+
+                    ws.Cell(filaESF, 4).Value = "IVA Ventas";
+                    ws.Cell(filaESF, 5).Value = totalIvaVentas;
+                    ws.Cell(filaESF, 5).Style.NumberFormat.Format = "$ #,##0.00";
+                    filaESF++;
+
+                    ws.Cell(filaESF, 1).Value = "IVA Compras";
+                    ws.Cell(filaESF, 2).Value = totalIvaCompras;
+                    ws.Cell(filaESF, 2).Style.NumberFormat.Format = "$ #,##0.00";
+
+                    ws.Cell(filaESF, 4).Value = "TOTAL PASIVOS";
+                    ws.Cell(filaESF, 5).Value = totalPasivos;
+                    ws.Cell(filaESF, 5).Style.Font.Bold = true;
+                    ws.Cell(filaESF, 5).Style.NumberFormat.Format = "$ #,##0.00";
+                    filaESF++;
+
+                    // ===== PATRIMONIO =====
+                    ws.Cell(filaESF, 4).Value = "PATRIMONIO";
+                    ws.Cell(filaESF, 4).Style.Font.Bold = true;
+                    filaESF++;
+
+                    ws.Cell(filaESF, 4).Value = "Utilidad del Ejercicio";
+                    ws.Cell(filaESF, 5).Value = totalPatrimonio;
+                    ws.Cell(filaESF, 5).Style.NumberFormat.Format = "$ #,##0.00";
+                    filaESF++;
+
+                    // ===== TOTALES =====
+                    ws.Cell(filaESF, 1).Value = "TOTAL ACTIVOS";
+                    ws.Cell(filaESF, 2).Value = totalActivos;
+                    ws.Cell(filaESF, 2).Style.Font.Bold = true;
+                    ws.Cell(filaESF, 2).Style.NumberFormat.Format = "$ #,##0.00";
+
+                    ws.Cell(filaESF, 4).Value = "TOTAL PASIVOS + PATRIMONIO";
+                    ws.Cell(filaESF, 5).Value = totalPasivos + totalPatrimonio;
+                    ws.Cell(filaESF, 5).Style.Font.Bold = true;
+                    ws.Cell(filaESF, 5).Style.NumberFormat.Format = "$ #,##0.00";
+
+
                     using (var ms = new MemoryStream())
                     {
                         wb.SaveAs(ms);
@@ -676,6 +771,131 @@ namespace SRI_Facturas
                 throw new Exception("Error al generar el resumen de bancos", ex);
             }
         }
+
+        private byte[] GenerarExcelEstadoSituacionFinanciera(List<CompraExcel> datos)
+        {
+            try
+            {
+                using (var wb = new XLWorkbook())
+                {
+                    var ws = wb.Worksheets.Add("Estado Situación Financiera");
+
+                    var compras = new List<decimal>();
+                    var ivaCompras = new List<decimal>();
+                    var ventas = new List<decimal>();
+                    var ivaVentas = new List<decimal>();
+                    var bancosDebe = new List<decimal>();
+                    var bancosHaber = new List<decimal>();
+
+                    // ================= RECOLECCIÓN =================
+                    foreach (var d in datos)
+                    {
+                        if (d.Tipo == TipoDocumento.Recibida)
+                        {
+                            compras.Add(d.ValorSinImpuestos);
+                            ivaCompras.Add(d.Iva);
+                            bancosHaber.Add(d.ImporteTotal);
+                        }
+                        else
+                        {
+                            ventas.Add(d.ValorSinImpuestos);
+                            ivaVentas.Add(d.Iva);
+                            bancosDebe.Add(d.ImporteTotal);
+                        }
+                    }
+
+                    // ================= CÁLCULOS =================
+                    decimal totalBancos = bancosDebe.Sum() - bancosHaber.Sum();
+                    decimal totalIvaCompras = ivaCompras.Sum();
+                    decimal totalIvaVentas = ivaVentas.Sum();
+                    decimal totalActivos = totalBancos + totalIvaCompras;
+                    decimal utilidadEjercicio = ventas.Sum() - compras.Sum();
+                    decimal totalPasivos = totalIvaVentas;
+                    decimal totalPatrimonio = utilidadEjercicio;
+
+                    int fila = 1;
+
+                    // ================= TÍTULO =================
+                    ws.Range(fila, 1, fila, 6).Merge().Value = "ESTADO DE SITUACIÓN FINANCIERA";
+                    ws.Cell(fila, 1).Style.Font.Bold = true;
+                    ws.Cell(fila, 1).Style.Font.FontSize = 12;
+                    fila++;
+
+                    // ================= FECHA =================
+                    var fecha = datos.First().FechaEmision;
+                    var fechaFinMes = new DateTime(
+                        fecha.Year,
+                        fecha.Month,
+                        DateTime.DaysInMonth(fecha.Year, fecha.Month)
+                    );
+
+                    ws.Range(fila, 1, fila, 6).Merge().Value = fechaFinMes;
+                    ws.Cell(fila, 1).Style.DateFormat.Format = "dd/MM/yyyy";
+                    fila += 2;
+
+                    // ================= ENCABEZADOS =================
+                    ws.Cell(fila, 1).Value = "ACTIVOS";
+                    ws.Cell(fila, 4).Value = "PASIVOS";
+                    ws.Range(fila, 1, fila, 4).Style.Font.Bold = true;
+                    fila++;
+
+                    // ================= ACTIVOS / PASIVOS =================
+                    ws.Cell(fila, 1).Value = "Bancos";
+                    ws.Cell(fila, 2).Value = totalBancos;
+                    ws.Cell(fila, 2).Style.NumberFormat.Format = "$ #,##0.00";
+
+                    ws.Cell(fila, 4).Value = "IVA Ventas";
+                    ws.Cell(fila, 5).Value = totalIvaVentas;
+                    ws.Cell(fila, 5).Style.NumberFormat.Format = "$ #,##0.00";
+                    fila++;
+
+                    ws.Cell(fila, 1).Value = "IVA Compras";
+                    ws.Cell(fila, 2).Value = totalIvaCompras;
+                    ws.Cell(fila, 2).Style.NumberFormat.Format = "$ #,##0.00";
+
+                    ws.Cell(fila, 4).Value = "TOTAL PASIVOS";
+                    ws.Cell(fila, 5).Value = totalPasivos;
+                    ws.Cell(fila, 5).Style.Font.Bold = true;
+                    ws.Cell(fila, 5).Style.NumberFormat.Format = "$ #,##0.00";
+                    fila++;
+
+                    // ================= PATRIMONIO =================
+                    ws.Cell(fila, 4).Value = "PATRIMONIO";
+                    ws.Cell(fila, 4).Style.Font.Bold = true;
+                    fila++;
+
+                    ws.Cell(fila, 4).Value = "Utilidad del Ejercicio";
+                    ws.Cell(fila, 5).Value = totalPatrimonio;
+                    ws.Cell(fila, 5).Style.NumberFormat.Format = "$ #,##0.00";
+                    fila++;
+
+                    // ================= TOTALES =================
+                    ws.Cell(fila, 1).Value = "TOTAL ACTIVOS";
+                    ws.Cell(fila, 2).Value = totalActivos;
+                    ws.Cell(fila, 2).Style.Font.Bold = true;
+                    ws.Cell(fila, 2).Style.NumberFormat.Format = "$ #,##0.00";
+
+                    ws.Cell(fila, 4).Value = "TOTAL PASIVOS + PATRIMONIO";
+                    ws.Cell(fila, 5).Value = totalPasivos + totalPatrimonio;
+                    ws.Cell(fila, 5).Style.Font.Bold = true;
+                    ws.Cell(fila, 5).Style.NumberFormat.Format = "$ #,##0.00";
+
+                    ws.Columns().AdjustToContents();
+
+                    using (var ms = new MemoryStream())
+                    {
+                        wb.SaveAs(ms);
+                        return ms.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error al generar el Estado de Situación Financiera", ex);
+            }
+        }
+
+
 
     }
 }

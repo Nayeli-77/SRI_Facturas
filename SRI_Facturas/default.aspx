@@ -91,6 +91,12 @@
                         runat="server"
                         OnClick="btnGenerarResumen_Click" />
 
+                    <asp:Button ID="btnGenerarSitFinanciera"
+                        CssClass="btn-action btn-contable"
+                        Text="Generar Situacion Financiera"
+                        runat="server"
+                        OnClick="btnGenerarSitFinanciera_Click" />
+
                 </div>
 
             </div>
