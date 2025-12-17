@@ -47,6 +47,78 @@ namespace SRI_Facturas
             Response.End();
         }
 
+        protected void btnGenerarLibroDiario_Click(object sender, EventArgs e)
+        {
+            if (!fuCarpetaCsv.HasFiles) return;
+
+            var lista = new List<CompraExcel>();
+
+            foreach (HttpPostedFile file in fuCarpetaCsv.PostedFiles)
+            {
+                if (file.FileName.EndsWith(".csv"))
+                    lista.AddRange(LeerCsvGeneral(file));
+            }
+
+            // ORDENAR POR FECHA
+            lista = lista.OrderBy(x => x.FechaEmision).ToList();
+
+            var excel = GenerarExelLibroDiario(lista);
+
+            Response.Clear();
+            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("content-disposition", "attachment;filename=LibroDiario.xlsx");
+            Response.BinaryWrite(excel);
+            Response.End();
+        }
+
+        protected void btnGenerarDebeHaber_Click(object sender, EventArgs e)
+        {
+            if (!fuCarpetaCsv.HasFiles) return;
+
+            var lista = new List<CompraExcel>();
+
+            foreach (HttpPostedFile file in fuCarpetaCsv.PostedFiles)
+            {
+                if (file.FileName.EndsWith(".csv"))
+                    lista.AddRange(LeerCsvGeneral(file));
+            }
+
+            // ORDENAR POR FECHA
+            lista = lista.OrderBy(x => x.FechaEmision).ToList();
+
+            var excel = GenerarExcelDebeHaber(lista);
+
+            Response.Clear();
+            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("content-disposition", "attachment;filename=DebeHaber.xlsx");
+            Response.BinaryWrite(excel);
+            Response.End();
+        }
+
+        protected void btnGenerarResumen_Click(object sender, EventArgs e)
+        {
+            if (!fuCarpetaCsv.HasFiles) return;
+
+            var lista = new List<CompraExcel>();
+
+            foreach (HttpPostedFile file in fuCarpetaCsv.PostedFiles)
+            {
+                if (file.FileName.EndsWith(".csv"))
+                    lista.AddRange(LeerCsvGeneral(file));
+            }
+
+            // ORDENAR POR FECHA
+            lista = lista.OrderBy(x => x.FechaEmision).ToList();
+
+            var excel = GenerarExcelResumen(lista);
+
+            Response.Clear();
+            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("content-disposition", "attachment;filename=Resumen.xlsx");
+            Response.BinaryWrite(excel);
+            Response.End();
+        }
+
         // ================= CSV =================
 
         private List<CompraExcel> LeerCsvGeneral(HttpPostedFile archivo)
@@ -347,6 +419,263 @@ namespace SRI_Facturas
             }
         }
 
+        private byte[] GenerarExelLibroDiario(List<CompraExcel> datos)
+        {
+            try
+            {
+                using (var wb = new XLWorkbook())
+                {
+                    var ws = wb.Worksheets.Add("Libro Diario");
+
+                    int fila = 1;
+                    int nro = 1;
+
+                    // ================= ENCABEZADOS =================
+                    ws.Cell("A1").Value = "Fecha";
+                    ws.Cell("B1").Value = "Detalle";
+                    ws.Cell("D1").Value = "Debe";
+                    ws.Cell("E1").Value = "Haber";
+                    ws.Range("A1:E1").Style.Font.Bold = true;
+                    fila++;
+
+                    var compras = new List<decimal>();
+                    var ivaCompras = new List<decimal>();
+                    var ventas = new List<decimal>();
+                    var ivaVentas = new List<decimal>();
+                    var bancosDebe = new List<decimal>();
+                    var bancosHaber = new List<decimal>();
+
+                    // ================= ASIENTOS =================
+                    foreach (var d in datos.OrderBy(x => x.FechaEmision))
+                    {
+                        ws.Cell(fila, 1).Value = d.FechaEmision;
+                        ws.Cell(fila, 1).Style.DateFormat.Format = "dd/MM/yyyy";
+                        ws.Cell(fila, 2).Value = nro;
+                        fila++;
+
+                        if (d.Tipo == TipoDocumento.Recibida)
+                        {
+                            ws.Cell(fila, 2).Value = "Compras";
+                            ws.Cell(fila, 4).Value = d.ValorSinImpuestos;
+                            compras.Add(d.ValorSinImpuestos);
+                            fila++;
+
+                            ws.Cell(fila, 2).Value = "IVA Compras";
+                            ws.Cell(fila, 4).Value = d.Iva;
+                            ivaCompras.Add(d.Iva);
+                            fila++;
+
+                            ws.Cell(fila, 2).Value = "Bancos";
+                            ws.Cell(fila, 5).Value = d.ImporteTotal;
+                            bancosHaber.Add(d.ImporteTotal);
+                            fila++;
+                        }
+                        else
+                        {
+                            ws.Cell(fila, 2).Value = "Bancos";
+                            ws.Cell(fila, 4).Value = d.ImporteTotal;
+                            bancosDebe.Add(d.ImporteTotal);
+                            fila++;
+
+                            ws.Cell(fila, 2).Value = "Ventas";
+                            ws.Cell(fila, 5).Value = d.ValorSinImpuestos;
+                            ventas.Add(d.ValorSinImpuestos);
+                            fila++;
+
+                            ws.Cell(fila, 2).Value = "IVA Ventas";
+                            ws.Cell(fila, 5).Value = d.Iva;
+                            ivaVentas.Add(d.Iva);
+                            fila++;
+                        }
+
+                        fila++;
+                        nro++;
+                    }
+
+                    using (var ms = new MemoryStream())
+                    {
+                        wb.SaveAs(ms);
+                        return ms.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error al generar el archivo contable", ex);
+            }
+        }
+
+        private byte[] GenerarExcelDebeHaber(List<CompraExcel> datos)
+        {
+            try
+            {
+                using (var wb = new XLWorkbook())
+                {
+                    var ws = wb.Worksheets.Add("Cálculos");
+
+                    var compras = new List<decimal>();
+                    var ivaCompras = new List<decimal>();
+                    var ventas = new List<decimal>();
+                    var ivaVentas = new List<decimal>();
+
+                    // ================= RECOLECCIÓN DE DATOS =================
+                    foreach (var d in datos)
+                    {
+                        if (d.Tipo == TipoDocumento.Recibida)
+                        {
+                            compras.Add(d.ValorSinImpuestos);
+                            ivaCompras.Add(d.Iva);
+                        }
+                        else
+                        {
+                            ventas.Add(d.ValorSinImpuestos);
+                            ivaVentas.Add(d.Iva);
+                        }
+                    }
+
+                    int fila = 1;
+
+                    // ================= COMPRAS =================
+                    ws.Range("A1:B1").Merge().Value = "COMPRAS";
+                    ws.Cell("A1").Style.Font.Bold = true;
+
+                    ws.Cell("A2").Value = "Debe";
+                    ws.Cell("B2").Value = "Haber";
+
+                    fila = 3;
+                    foreach (var v in compras)
+                        ws.Cell(fila++, 1).Value = v;
+
+                    ws.Cell(fila, 1).Value = compras.Sum();
+                    ws.Cell(fila, 1).Style.Font.Bold = true;
+
+                    // ================= IVA COMPRAS =================
+                    ws.Range("D1:E1").Merge().Value = "IVA COMPRAS";
+                    ws.Cell("D1").Style.Font.Bold = true;
+
+                    ws.Cell("D2").Value = "Debe";
+                    ws.Cell("E2").Value = "Haber";
+
+                    fila = 3;
+                    foreach (var v in ivaCompras)
+                        ws.Cell(fila++, 4).Value = v;
+
+                    ws.Cell(fila, 4).Value = ivaCompras.Sum();
+                    ws.Cell(fila, 4).Style.Font.Bold = true;
+
+                    // ================= VENTAS =================
+                    ws.Range("A7:B7").Merge().Value = "VENTAS";
+                    ws.Cell("A7").Style.Font.Bold = true;
+
+                    ws.Cell("A8").Value = "Debe";
+                    ws.Cell("B8").Value = "Haber";
+
+                    fila = 9;
+                    foreach (var v in ventas)
+                        ws.Cell(fila++, 2).Value = v;
+
+                    ws.Cell(fila, 2).Value = ventas.Sum();
+                    ws.Cell(fila, 2).Style.Font.Bold = true;
+
+                    // ================= IVA VENTAS =================
+                    ws.Range("D7:E7").Merge().Value = "IVA VENTAS";
+                    ws.Cell("D7").Style.Font.Bold = true;
+
+                    ws.Cell("D8").Value = "Debe";
+                    ws.Cell("E8").Value = "Haber";
+
+                    fila = 9;
+                    foreach (var v in ivaVentas)
+                        ws.Cell(fila++, 5).Value = v;
+
+                    ws.Cell(fila, 5).Value = ivaVentas.Sum();
+                    ws.Cell(fila, 5).Style.Font.Bold = true;
+
+                    ws.Columns().AdjustToContents();
+
+                    using (var ms = new MemoryStream())
+                    {
+                        wb.SaveAs(ms);
+                        return ms.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error al generar el archivo de cálculos", ex);
+            }
+        }
+
+        private byte[] GenerarExcelResumen(List<CompraExcel> datos)
+        {
+            try
+            {
+                using (var wb = new XLWorkbook())
+                {
+                    var ws = wb.Worksheets.Add("Resumen Bancos");
+
+                    var bancosDebe = new List<decimal>();
+                    var bancosHaber = new List<decimal>();
+
+                    // ================= RECOLECCIÓN =================
+                    foreach (var d in datos)
+                    {
+                        if (d.Tipo == TipoDocumento.Recibida)
+                        {
+                            // Compras → Bancos al HABER
+                            bancosHaber.Add(d.ImporteTotal);
+                        }
+                        else
+                        {
+                            // Ventas → Bancos al DEBE
+                            bancosDebe.Add(d.ImporteTotal);
+                        }
+                    }
+
+                    int fila = 1;
+
+                    // ================= BANCOS =================
+                    ws.Range(fila, 1, fila, 2).Merge().Value = "BANCOS";
+                    ws.Cell(fila, 1).Style.Font.Bold = true;
+                    fila++;
+
+                    ws.Cell(fila, 1).Value = "Debe";
+                    ws.Cell(fila, 2).Value = "Haber";
+                    ws.Range(fila, 1, fila, 2).Style.Font.Bold = true;
+                    fila++;
+
+                    int maxFilas = Math.Max(bancosDebe.Count, bancosHaber.Count);
+
+                    for (int i = 0; i < maxFilas; i++)
+                    {
+                        if (i < bancosDebe.Count)
+                            ws.Cell(fila, 1).Value = bancosDebe[i];
+
+                        if (i < bancosHaber.Count)
+                            ws.Cell(fila, 2).Value = bancosHaber[i];
+
+                        fila++;
+                    }
+
+                    // ================= TOTALES =================
+                    ws.Cell(fila, 1).Value = bancosDebe.Sum();
+                    ws.Cell(fila, 2).Value = bancosHaber.Sum();
+                    ws.Range(fila, 1, fila, 2).Style.Font.Bold = true;
+
+                    ws.Columns().AdjustToContents();
+
+                    using (var ms = new MemoryStream())
+                    {
+                        wb.SaveAs(ms);
+                        return ms.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error al generar el resumen de bancos", ex);
+            }
+        }
 
     }
 }

@@ -73,6 +73,24 @@
                         runat="server"
                         OnClick="btnGenerarContable_Click" />
 
+                    <asp:Button ID="btnGenerarLibroDiario"
+                        CssClass="btn-action btn-contable"
+                        Text="Generar Libro Diario"
+                        runat="server"
+                        OnClick="btnGenerarLibroDiario_Click" />
+
+                    <asp:Button ID="btnGenerarDebeHaber"
+                        CssClass="btn-action btn-contable"
+                        Text="Generar Debe Haber"
+                        runat="server"
+                        OnClick="btnGenerarDebeHaber_Click" />
+
+                    <asp:Button ID="btnGenerarResumen"
+                        CssClass="btn-action btn-contable"
+                        Text="Generar Resumen"
+                        runat="server"
+                        OnClick="btnGenerarResumen_Click" />
+
                 </div>
 
             </div>
